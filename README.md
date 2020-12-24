@@ -1,1 +1,0 @@
-camera_lidar_calibration_test_ws
