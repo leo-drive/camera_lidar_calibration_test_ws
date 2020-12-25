@@ -27,6 +27,12 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/time_synchronizer.h>
 
+#include <tf/transform_listener.h>
+
+#include <tf2_ros/transform_listener.h>
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include <tf2_eigen/tf2_eigen.h>
+
 #include "PointCloudTypes.h"
 
 class CalibrationTest {
@@ -45,9 +51,10 @@ public:
     std::string lidar_topic;
     std::string cam_info_topic;
 
+    tf2_ros::Buffer tfBuffer;
+    std::shared_ptr<tf2_ros::TransformListener> tfListener;
+
     Eigen::Matrix3d mat_cam_intrinsic_3x3;
-    Eigen::MatrixXd mat_velo_to_cam_3x4;
-    Eigen::Matrix4d mat_point_transformer = Eigen::Matrix4d::Identity();
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image,
     sensor_msgs::PointCloud2, sensor_msgs::CameraInfo> ApproxTime;

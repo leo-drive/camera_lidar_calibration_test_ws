@@ -10,9 +10,10 @@ CalibrationTest::CalibrationTest(ros::NodeHandle &nh) :
     nh_(nh),
     camera_topic("/camera/image_raw"),
     lidar_topic("/velodyne_points"),
-    cam_info_topic("/camera/camera_info"),
-    mat_velo_to_cam_3x4(3,4)
+    cam_info_topic("/camera/camera_info")
 {
+    tfListener = std::make_shared<tf2_ros::TransformListener>(tfBuffer);
+
     sub_cam_ = std::make_shared<msg_camera>(nh_,camera_topic, 12);
     sub_lidar_ = std::make_shared<msg_lidar>(nh_,lidar_topic, 12);
     sub_cam_info_ = std::make_shared<msg_cam_info>(nh_, cam_info_topic, 12);
@@ -22,17 +23,6 @@ CalibrationTest::CalibrationTest(ros::NodeHandle &nh) :
 
     frustum_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("/frustum_cloud", 1);
     frustum_cloud_colored_publisher = nh.advertise<sensor_msgs::PointCloud2>("/frustum_cloud_colored", 1);
-
-
-    mat_cam_intrinsic_3x3 << 1112.362634, 0.000000, 998.386810, 0.000000, 1101.277314, 566.534762,0.000000, 0.000000, 1.000000;
-    mat_velo_to_cam_3x4 <<
-    0.0463852390944369, 0.01466058174567638, 1.029219078176173, 0.000955019,
-    -0.896812064602486, 0.2389920814805407, -0.04414866208473666, -0.00267233,
-    0.07241254358148354, -0.5814859082104717, -0.02069363859114789, -0.000290694;
-
-    Eigen::MatrixXd mat_projector_3x4 = mat_cam_intrinsic_3x3*mat_velo_to_cam_3x4;
-
-    mat_point_transformer.topLeftCorner(3, 4) = mat_projector_3x4;
 }
 
 void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const sensor_msgs::PointCloud2ConstPtr &msg_lidar,
@@ -60,6 +50,30 @@ void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const 
 
     std::cout << "Cloud size: " << cloud->size() << std::endl;
     std::cout << "Lidar frame: " << msg_lidar->header.frame_id << std::endl;
+
+
+    mat_cam_intrinsic_3x3 <<
+    msg_cam_info->K.elems[0], msg_cam_info->K.elems[1], msg_cam_info->K.elems[2],
+    msg_cam_info->K.elems[3], msg_cam_info->K.elems[4], msg_cam_info->K.elems[5],
+    msg_cam_info->K.elems[6], msg_cam_info->K.elems[7], msg_cam_info->K.elems[8];
+
+
+    geometry_msgs::TransformStamped trans_velo_to_cam;
+    try {
+        trans_velo_to_cam = tfBuffer.lookupTransform("velodyne", "camera", ros::Time::now());
+    }
+    catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        ros::Duration(1.0).sleep();
+        return;
+    }
+
+    Eigen::Affine3d affine_velo_to_cam_ = tf2::transformToEigen(trans_velo_to_cam);
+    Eigen::Matrix4d mat_velo_to_cam = affine_velo_to_cam_.matrix();
+    Eigen::MatrixXd mat_projector_3x4 = mat_cam_intrinsic_3x3 * mat_velo_to_cam.topLeftCorner(3, 4);
+    Eigen::Matrix4d mat_point_transformer = Eigen::Matrix4d::Identity();
+    mat_point_transformer.topLeftCorner(3, 4) = mat_projector_3x4;
+
 
     Cloud::Ptr frustum_cloud(new Cloud);
     pcltype::CloudColored::Ptr frustum_cloud_colored(new pcltype::CloudColored);
