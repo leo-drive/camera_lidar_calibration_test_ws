@@ -3,5 +3,4 @@
   <node pkg="tf" type="static_transform_publisher"
         name="transformation_velodyne_to_camera"
         args="0.000955019 -0.00267233 -0.000290694 -1.51862 -0.10844 -1.49639 velodyne camera 100"/>
-
 </launch>

@@ -10,7 +10,8 @@ CalibrationTest::CalibrationTest(ros::NodeHandle &nh) :
     nh_(nh),
     camera_topic("/camera/image_raw"),
     lidar_topic("/velodyne_points"),
-    cam_info_topic("/camera/camera_info")
+    cam_info_topic("/camera/camera_info"),
+    it(nh)
 {
     tfListener = std::make_shared<tf2_ros::TransformListener>(tfBuffer);
 
@@ -23,6 +24,7 @@ CalibrationTest::CalibrationTest(ros::NodeHandle &nh) :
 
     frustum_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("/frustum_cloud", 1);
     frustum_cloud_colored_publisher = nh.advertise<sensor_msgs::PointCloud2>("/frustum_cloud_colored", 1);
+    image_pub = it.advertise("/projected_image", 1);
 }
 
 void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const sensor_msgs::PointCloud2ConstPtr &msg_lidar,
@@ -53,9 +55,10 @@ void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const 
 
 
     mat_cam_intrinsic_3x3 <<
-    msg_cam_info->K.elems[0], msg_cam_info->K.elems[1], msg_cam_info->K.elems[2],
-    msg_cam_info->K.elems[3], msg_cam_info->K.elems[4], msg_cam_info->K.elems[5],
-    msg_cam_info->K.elems[6], msg_cam_info->K.elems[7], msg_cam_info->K.elems[8];
+    1112.362634, 0.000000, 998.386810,
+    0.000000, 1101.277314, 566.534762,
+    0.000000, 0.000000, 1.000000;
+
 
 
     geometry_msgs::TransformStamped trans_velo_to_cam;
@@ -89,6 +92,12 @@ void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const 
             frustum_cloud->points.push_back(point);
             auto point_colored = CalibrationTest::giveColoredPoint(cv_img, point_in_image, point);
             frustum_cloud_colored->points.push_back(point_colored);
+
+            int radiusCircle = 1;
+            cv::Scalar colorCircle1(0,0,255);
+            int thicknessCircle1 = 2;
+
+            cv::circle(cv_img, point_in_image, radiusCircle, colorCircle1, thicknessCircle1);
         }
     }
     std::cout << "Frustum cloud size: " << frustum_cloud->size() << std::endl;
@@ -103,8 +112,10 @@ void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const 
     msg_frustum_colored.header = msg_lidar->header;
     frustum_cloud_colored_publisher.publish(msg_frustum_colored);
 
+    sensor_msgs::ImagePtr img_msg_out = cv_bridge::CvImage(msg_img->header, "bgr8", cv_img).toImageMsg();
+    image_pub.publish(img_msg_out);
 
-    std::cout << "************************" << std::endl;
+    std::cout << "**********************************************" << std::endl;
 
 
 
@@ -171,27 +182,3 @@ pcltype::PointColored CalibrationTest::giveColoredPoint(const cv::Mat &image, cv
     return point_colored;
 }
 
-/*
-void CalibrationTest::ImageCallback(const sensor_msgs::ImageConstPtr& image_msg)
-{
-
-    camera_info_msg_.K = {
-            1088.733557, 0.000000, 981.725055,
-            0.000000, 1108.070580, 562.265356,
-            0.000000, 0.000000, 1.000000};
-
-    camera_info_msg_.height = 1280;
-    camera_info_msg_.width  = 1920;
-
-    camera_info_msg_.distortion_model = "plumb_bob";
-
-    camera_info_msg_.D = {-0.306301, 0.073200, 0.006803, -0.003658, 0.000000};
-
-    camera_info_msg_.header = image_msg->header;
-
-    camera_info_pub.publish(camera_info_msg_);
-
-    std::cout << "Camera Info is published!\n*************************" << std::endl;
-
-}
-*/

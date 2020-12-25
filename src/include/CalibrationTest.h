@@ -44,6 +44,9 @@ public:
 
     ros::NodeHandle& nh_;
 
+    image_transport::ImageTransport it;
+    image_transport::Publisher image_pub;
+
     ros::Publisher frustum_cloud_publisher;
     ros::Publisher frustum_cloud_colored_publisher;
 
