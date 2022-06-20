@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: calibration_test
+Description: Description of calibration_test
+Version: 1.12.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
