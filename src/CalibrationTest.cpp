@@ -182,6 +182,9 @@ void CalibrationTest::project_lidar_points_to_image_plan (
     {
         if (point.x <= 0)
             continue;
+        
+        if (point.x >10)
+            continue;
 
         Eigen::Vector4d pos;
         pos << point.x, point.y, point.z, 1;
