@@ -56,12 +56,21 @@ void CalibrationTest::Callback(const sensor_msgs::ImageConstPtr &msg_img, const 
     std::cout << "Cloud size: " << cloud->size() << std::endl;
     std::cout << "Lidar frame: " << msg_lidar->header.frame_id << std::endl;
 
+    Cloud::Ptr cloud_filtered(new Cloud);
+    // Create the filtering object
+    pcl::VoxelGrid<Point> sor;
+    //pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    sor.setInputCloud (cloud);
+    sor.setLeafSize (0.04f, 0.04f, 0.04f);
+    sor.filter (*cloud_filtered);
+
+
     project_lidar_points_to_image_plan (
             cv_img,
             image_pub,
             frustum_cloud_colored_publisher,
             15,
-            cloud);
+            cloud_filtered);
 }
 
 
@@ -171,6 +180,9 @@ void CalibrationTest::project_lidar_points_to_image_plan (
     size_t count_point_in_img = 0;
     for (const auto &point : input_cloud->points)
     {
+        if (point.x <= 0)
+            continue;
+
         Eigen::Vector4d pos;
         pos << point.x, point.y, point.z, 1;
 
